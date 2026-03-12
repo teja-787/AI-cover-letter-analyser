@@ -29,7 +29,7 @@ export default function Home() {
     setCoverLetter("");
 
     try {
-      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8002";
+      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://ai-cover-letter-analyser.onrender.com";
       const res = await fetch(`${BACKEND_URL}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
