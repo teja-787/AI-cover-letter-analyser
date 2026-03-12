@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import httpx
+import os
 
 app = FastAPI(title="AI Cover Letter Generator")
 
@@ -15,9 +16,10 @@ app.add_middleware(
 class GenerateRequest(BaseModel):
     resume: str
     job_description: str
-    tone: str = "professional"  # professional | enthusiastic | concise
+    tone: str = "professional"
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 TONE_INSTRUCTIONS = {
     "professional": "Write in a formal, professional tone.",
@@ -35,6 +37,9 @@ def health():
 
 @app.post("/generate")
 async def generate_cover_letter(request: GenerateRequest):
+    if not GROQ_API_KEY:
+        raise HTTPException(status_code=500, detail="GROQ_API_KEY not set")
+
     tone_instruction = TONE_INSTRUCTIONS.get(request.tone, TONE_INSTRUCTIONS["professional"])
 
     prompt = f"""You are an expert career coach and professional cover letter writer.
@@ -49,7 +54,7 @@ Rules:
 - Match skills from resume to job requirements
 - Show genuine enthusiasm for the role
 - End with a confident call to action
-- Do NOT include placeholders like [Company Name] — infer from job description if possible
+- Do NOT include placeholders like [Company Name]
 - Output ONLY the cover letter, no explanations
 
 RESUME:
@@ -61,18 +66,26 @@ JOB DESCRIPTION:
 Cover Letter:"""
 
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(OLLAMA_URL, json={
-                "model": "llama3",
-                "prompt": prompt,
-                "stream": False
-            })
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                GROQ_URL,
+                headers={
+                    "Authorization": f"Bearer {GROQ_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "llama3-8b-8192",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 1024,
+                    "temperature": 0.7
+                }
+            )
 
             if response.status_code != 200:
-                raise HTTPException(status_code=500, detail="Ollama request failed")
+                raise HTTPException(status_code=500, detail=f"Groq error: {response.text}")
 
             result = response.json()
-            cover_letter = result.get("response", "").strip()
+            cover_letter = result["choices"][0]["message"]["content"].strip()
 
             return {
                 "cover_letter": cover_letter,
@@ -81,6 +94,6 @@ Cover Letter:"""
             }
 
     except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="AI took too long. Try again.")
+        raise HTTPException(status_code=504, detail="Request timed out")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
