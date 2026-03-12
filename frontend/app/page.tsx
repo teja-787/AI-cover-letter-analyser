@@ -46,7 +46,7 @@ export default function Home() {
       setCoverLetter(data.cover_letter);
       setWordCount(data.word_count);
       toast.success("Cover letter generated!");
-    } catch (err) {
+    } catch {
       toast.error("Failed to generate. Is Ollama running?");
     } finally {
       setLoading(false);
