@@ -4,6 +4,7 @@ from pydantic import BaseModel
 import httpx
 import os
 
+PORT = int(os.environ.get("PORT", 8002))
 app = FastAPI(title="AI Cover Letter Generator")
 
 app.add_middleware(
