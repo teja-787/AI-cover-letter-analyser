@@ -29,7 +29,8 @@ export default function Home() {
     setCoverLetter("");
 
     try {
-      const res = await fetch("http://localhost:8002/generate", {
+      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8002";
+      const res = await fetch(`${BACKEND_URL}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
